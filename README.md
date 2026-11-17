@@ -13,10 +13,8 @@ Static website for GitHub Pages: open `index.html`, no build step. All numbers a
 ## Data
 The SCADA data is proprietary (Power Systems and Smart Grid Laboratory, IIT Gandhinagar, shared with permission) and is NOT in this repository. See the "Reproduce this work" section of the site for the expected file names.
 
-## Publish on GitHub Pages
-1. Push this folder to a GitHub repository.
-2. Settings, Pages, Source: "Deploy from a branch", branch `main`, folder `/ (root)`.
-3. The site appears at `https://<your-username>.github.io/<repo-name>/`.
+## Website location
+1. The site appears at `(https://shivanshkapoorking.github.io/ES-335-Machine-Learning-Course-Project-Shivansh-24110330/)`.
 
 ## Disclosure
-The website was built with the help of Claude (Anthropic) from the saved notebook outputs. The author is responsible for the results.
+The data preprocessing pipelines, feature engineering, machine learning modeling (XGBoost and Random Forest across Scenarios S1–S4), and evaluation metrics were designed and executed by the author. An AI assistant was used to help write and debug the Python scripts, format CSV deliverables, and structure this interactive website from the notebook outputs. The author verified all code logic, checked every metric and figure, and takes full responsibility for the final work.
