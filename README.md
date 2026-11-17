@@ -1,6 +1,6 @@
-# Forecasting a 21.5 MW solar plant, one week ahead
+# Forecasting a 21.5 MW solar plant, one Day ahead
 
-ES 335 Machine Learning course project. Shivansh Kapur, roll number 24110330 (solo).
+ES 335 Machine Learning course project. Shivansh, roll number 24110330 (solo).
 
 Static website for GitHub Pages: open `index.html`, no build step. All numbers and plots on the site were read from the saved outputs of the three notebooks (Monsoon updated from the re-run notebook with all 16 runs finished) in `code/`.
 
