@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Forecasting a 21.5 MW solar plant, one week ahead</title>
+<meta name="description" content="ES 335 course project: Random Forest and XGBoost forecasts of a 21.5 MW solar PV plant over three seasonal test weeks, with four levels of input information.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E☀%3C/text%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,500;12..96,650;12..96,700&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<div class="shell">
+<nav class="toc" aria-label="Sections">
+  <strong>On this page</strong>
+  <a href="#explorer">Explore forecasts</a>
+  <a href="#question">Question</a>
+  <a href="#data">Data</a>
+  <a href="#preprocessing">Preprocessing</a>
+  <a href="#methods">Baseline and methods</a>
+  <a href="#evaluation">Evaluation</a>
+  <a href="#results">Results</a>
+  <a href="#selection">Feature selection</a>
+  <a href="#errors">Errors</a>
+  <a href="#limitations">Limitations</a>
+  <a href="#conclusion">Conclusion</a>
+  <a href="#reproduce">Reproduce</a>
+</nav>
+
+<main id="main">
+
+<section class="first hero" aria-labelledby="h-top">
+  <h1 id="h-top">Forecasting a 21.5 MW solar plant, one week ahead</h1>
+  <p class="byline">Shivansh, Roll number 24110330. ES 335 Machine Learning course project, working solo.</p>
+  <p class="lead">A grid operator has to commit to a week of solar output before the weather arrives. This project asks how much a Random Forest or XGBoost forecast improves as it is given more information, and where it still fails. Pick a season, a model and a level of information below, and compare the forecast with what the plant actually produced.</p>
+</section>
+
+<section id="explorer" class="first" style="padding-top:0;border-top:0" aria-labelledby="h-explorer">
+  <h2 id="h-explorer">Forecast explorer</h2>
+  <div class="controls">
+    <fieldset class="ctl"><legend>Season (test week)</legend>
+      <div class="seg" role="radiogroup" aria-label="Season" data-ctl="season"></div></fieldset>
+    <fieldset class="ctl"><legend>Model</legend>
+      <div class="seg" role="radiogroup" aria-label="Model" data-ctl="model"></div></fieldset>
+    <fieldset class="ctl"><legend>Input features</legend>
+      <div class="seg" role="radiogroup" aria-label="Input features" data-ctl="mode"></div></fieldset>
+  </div>
+
+  <div class="rail" id="rail" role="radiogroup" aria-label="Level of information given to the model"><span class="fill" id="railfill" aria-hidden="true"></span></div>
+
+  <div class="explorer">
+    <figure class="plot" id="plotbox" style="margin:0">
+      <img id="plotimg" alt="" width="1489" height="590">
+      <div class="empty" id="plotempty" hidden></div>
+      <figcaption id="plotcap"></figcaption>
+    </figure>
+    <aside class="score" id="score" aria-live="polite" aria-label="Scorecard for the selected forecast"></aside>
+  </div>
+  <p class="small" style="max-width:48rem;margin-top:.75rem">The black line is measured plant output. Each dashed line is one of five model revisions (Rev0 to Rev4: same method, different hyperparameters and random seeds). Where the dashed lines spread apart, the model is unsure of itself. Scorecard numbers are the mean over the five revisions; the range shows the lowest and highest.</p>
+</section>
+
+<section id="question" aria-labelledby="h-question">
+  <h2 id="h-question">The question</h2>
+  <div class="prose">
+    <p>How accurately can tree-based ensembles forecast one week of solar power for a single utility plant, how does accuracy change as the model is given more information, and what kind of weather makes the forecast fail?</p>
+    <ul>
+      <li><strong>One row:</strong> one 15-minute reading from the plant’s SCADA logger (timestamp, power, module temperature, irradiance, air temperature, wind direction, wind speed).</li>
+      <li><strong>Target:</strong> real power output, <code>Act. Power (MW)</code>, between 0 and the 21.5 MW installed capacity.</li>
+      <li><strong>When the prediction is made:</strong> once, at the start of the week, for all 672 quarter-hour steps of the next seven days. There is no re-forecasting during the week.</li>
+      <li><strong>What is available then:</strong> depends on the scenario, from past power and the calendar only (S1) up to measured weather and sun position at each target time (S2 to S4). The scenarios are defined in <a href="#methods">Baseline and methods</a>.</li>
+      <li><strong>What the results can claim:</strong> how these models behaved on one plant in three specific test weeks. They show association, not cause, and they do not show how the models would do in other years, at other plants, or with a real weather forecast.</li>
+    </ul>
+  </div>
+</section>
+
+<section id="data" aria-labelledby="h-data">
+  <h2 id="h-data">The data</h2>
+  <div class="prose">
+    <p>The data are SCADA logs from a 21.5 MW grid-connected solar plant in western India (western India). They were shared by the Power Systems and Smart Grid Laboratory at IIT Gandhinagar, with permission from Prof. Naran M. Pindoriya, for this course project. The logs are proprietary, so <strong>no raw data is published on this site or in the repository</strong>. Only model outputs, plots and summary numbers are shown.</p>
+  </div>
+  <div class="tablewrap" style="max-width:46rem"><table>
+    <thead><tr><th>Column</th><th>Meaning</th><th>Unit</th></tr></thead>
+    <tbody>
+      <tr><td><code>TimeStamp</code></td><td>Start of the 15-minute interval</td><td>date, time</td></tr>
+      <tr><td><code>Act. Power (MW)</code></td><td>Plant output (the target)</td><td>MW</td></tr>
+      <tr><td><code>W-GHI</code></td><td>Global horizontal irradiance</td><td>W/m²</td></tr>
+      <tr><td><code>W-MODT-</code></td><td>Module surface temperature</td><td>°C</td></tr>
+      <tr><td><code>W-AMBT</code></td><td>Ambient air temperature</td><td>°C</td></tr>
+      <tr><td><code>W-WSPD</code>, <code>W-WDIR-</code></td><td>Wind speed and direction</td><td>m/s, degrees</td></tr>
+    </tbody></table></div>
+  <div class="prose">
+    <h3>How the data is split</h3>
+    <p>Each season has its own training, validation and test file, and the three are cut in time order, never shuffled. The proposal planned about 85 to 86 days for training, a one-month validation window and a seven-day test week. The notebooks do not print exact row counts, so those planned sizes are the ones quoted here.</p>
+  </div>
+  <div class="tablewrap" style="max-width:46rem"><table>
+    <thead><tr><th>Season</th><th>Test week (672 steps)</th><th>Role of the week</th></tr></thead>
+    <tbody>
+      <tr><td>Summer</td><td>8 to 14 June 2026</td><td>Final test, untouched during tuning</td></tr>
+      <tr><td>Winter</td><td>8 to 14 February 2026</td><td>Final test, untouched during tuning</td></tr>
+      <tr><td>Monsoon</td><td>8 to 14 October 2025</td><td>Final test, untouched during tuning</td></tr>
+    </tbody></table></div>
+  <div class="prose">
+    <h3>Data quality</h3>
+    <ul>
+      <li>Timestamps arrive in several text formats. The code tries eight formats and stops with an error if any timestamp cannot be parsed.</li>
+      <li>Duplicate timestamps are dropped. Intervals missing inside a contiguous stretch become empty values and are not filled in. A gap longer than one day starts a new block.</li>
+      <li>Any row with a missing feature or target is removed before modelling. This shows up as short breaks in some forecast lines, for example on the morning of 13 February in the Winter week.</li>
+      <li>The same rows are used for all four scenarios, so the scenarios are compared on identical timestamps.</li>
+    </ul>
+  </div>
+</section>
+
+<section id="preprocessing" aria-labelledby="h-pre">
+  <h2 id="h-pre">Preprocessing</h2>
+  <div class="prose">
+    <ol>
+      <li><strong>Clean the time axis.</strong> Parse, sort, drop duplicates and place readings on a regular 15-minute grid (see above).</li>
+      <li><strong>Encode time of day and time of year</strong> as sine and cosine pairs, so 23:45 and 00:00 are neighbours.</li>
+      <li><strong>Build past-power features:</strong> power one day earlier (<code>lag_1d</code>), seven days earlier (<code>lag_7d</code>), and the average of the same quarter-hour over days 7 to 13 earlier (<code>slot_mean_7_13d</code>).</li>
+      <li><strong>Build weather features:</strong> wind speed and direction become east-west and north-south components (<code>wind_u</code>, <code>wind_v</code>).</li>
+      <li><strong>Build physics features:</strong> module-minus-air temperature, irradiance corrected for module heating (<code>ghi_temp_interaction</code>, using a −0.4% per °C temperature coefficient), and a wind cooling proxy.</li>
+      <li><strong>Build sun-position features:</strong> solar zenith, elevation and a clear-sky irradiance estimate computed from the date, time and the plant’s coordinates, plus a clear-sky index (measured irradiance divided by clear-sky irradiance).</li>
+      <li><strong>Fit one learned constant on training data only.</strong> A plant yield factor <code>k_plant</code> (MW per unit of corrected irradiance) is fitted by least squares on training rows with irradiance above 50 W/m². It feeds <code>pv_physical_MW</code> and <code>clear_sky_MW</code>.</li>
+      <li><strong>Post-process predictions.</strong> Clip to 0 to 21.5 MW and set the forecast to zero between 20:00 and 05:30, a fixed clock rule rather than something the model learns.</li>
+    </ol>
+    <p>No scaling or imputation is applied. Trees split on thresholds, so rescaling a feature does not change them, and leaving gaps empty means there is nothing to fit on test data. The one learned preprocessing step, <code>k_plant</code>, uses training rows only.</p>
+    <div class="note alert"><strong>One leakage exception.</strong> <code>lag_1d</code> is computed over the whole time axis, so for days 2 to 7 of a test week it holds the actual power of the previous test day. That is not available when a 7-day-ahead forecast is issued. The details and how many runs are affected are in <a href="#limitations">Limitations</a>.</div>
+  </div>
+</section>
+
+<section id="methods" aria-labelledby="h-methods">
+  <h2 id="h-methods">Baseline and methods</h2>
+  <div class="prose">
+    <h3>Four levels of information</h3>
+    <p>The same models are trained four times, each time with a larger feature set. <strong>S1 is the reference model</strong>: it sees only past power and the calendar, no weather, and every other scenario is compared against it.</p>
+  </div>
+  <div class="tablewrap" style="max-width:56rem"><table>
+    <thead><tr><th>Scenario</th><th>Adds</th><th class="num">Features</th></tr></thead>
+    <tbody>
+      <tr><td>S1</td><td>Time encodings (4) and past power (3)</td><td class="num">7</td></tr>
+      <tr><td>S2</td><td>Measured weather at the target time: module temperature, irradiance, air temperature, wind speed, wind components (6)</td><td class="num">13</td></tr>
+      <tr><td>S3</td><td>Physics-derived features: temperature difference, heat-corrected irradiance, wind cooling proxy (3)</td><td class="num">16</td></tr>
+      <tr><td>S4</td><td>Sun position: zenith cosine, elevation, clear-sky irradiance, clear-sky index, two plant-yield estimates (6)</td><td class="num">22</td></tr>
+    </tbody></table></div>
+  <div class="note"><strong>How this differs from the proposal.</strong> The proposal described S2 as weather observed up to the forecast time and S3 as forward weather covariates. In the notebooks, S2 to S4 all use the weather measured at the target time itself, which is the same as assuming a perfect weather forecast. S3 adds derived physics features, and S4 adds sun position. The persistence and diurnal-mean baselines in the proposal are not in the notebooks, so S1 is the only reference shown here.</div>
+
+  <div class="prose">
+    <h3>Two models, chosen for the data</h3>
+    <ul>
+      <li><strong>Random Forest</strong> averages many decorrelated trees, which lowers variance and copes with noisy sensor readings. Each tree is fitted on training data only.</li>
+      <li><strong>XGBoost</strong> adds trees one at a time, each correcting the errors of the last, with a regularised objective. It can follow sharp ramps. Training stops early when the validation error has not improved for 30 rounds.</li>
+    </ul>
+    <p>Power depends on irradiance in a saturating, non-linear way and interacts with temperature, and the inputs have different units. Trees handle that without feature scaling. A deep model was not needed to answer this question.</p>
+    <h3>Five revisions of each model</h3>
+    <p>Each model is trained five times with fixed hyperparameters and seeds. All five are reported, and none is picked afterwards by looking at the test week.</p>
+  </div>
+  <div class="rev-grid">
+    <div class="card"><h3>XGBoost revisions</h3>
+      <div class="tablewrap"><table><thead><tr><th>Rev</th><th class="num">Trees (max)</th><th class="num">Depth</th><th class="num">Learning rate</th><th class="num">Row sample</th><th class="num">Column sample</th></tr></thead><tbody>
+      <tr><td>0</td><td class="num">350</td><td class="num">6</td><td class="num">0.030</td><td class="num">0.80</td><td class="num">0.8</td></tr>
+      <tr><td>1</td><td class="num">350</td><td class="num">7</td><td class="num">0.030</td><td class="num">0.80</td><td class="num">0.8</td></tr>
+      <tr><td>2</td><td class="num">400</td><td class="num">5</td><td class="num">0.025</td><td class="num">0.75</td><td class="num">0.8</td></tr>
+      <tr><td>3</td><td class="num">350</td><td class="num">6</td><td class="num">0.035</td><td class="num">0.80</td><td class="num">0.7</td></tr>
+      <tr><td>4</td><td class="num">450</td><td class="num">6</td><td class="num">0.020</td><td class="num">0.85</td><td class="num">0.8</td></tr></tbody></table></div></div>
+    <div class="card"><h3>Random Forest revisions</h3>
+      <div class="tablewrap"><table><thead><tr><th>Rev</th><th class="num">Trees</th><th class="num">Max depth</th><th>Other settings</th></tr></thead><tbody>
+      <tr><td>0</td><td class="num">150</td><td class="num">12</td><td>min split 4</td></tr>
+      <tr><td>1</td><td class="num">200</td><td class="num">16</td><td>min split 3</td></tr>
+      <tr><td>2</td><td class="num">250</td><td class="num">10</td><td>features per split: square root of total; min leaf 2</td></tr>
+      <tr><td>3</td><td class="num">200</td><td class="num">14</td><td>80% row sample per tree; min split 4</td></tr>
+      <tr><td>4</td><td class="num">300</td><td class="num">15</td><td>min split 2</td></tr></tbody></table></div></div>
+  </div>
+  <div class="prose">
+    <h3>Standard or greedy features</h3>
+    <p>Each scenario is run twice. <strong>Standard</strong> uses every feature in the scenario. <strong>Greedy</strong> runs a forward search: starting from nothing, it repeatedly adds the one feature that gives the lowest validation RMSE, keeps going through the whole pool, rolls back to the best subset, then tries removing features that no longer help. The search itself uses a small, fast model (180 XGBoost trees, or 60 Random Forest trees of depth 10) and only ever looks at training and validation data. The search is costly: for the 22-feature pool it took about 200 to 280 seconds for XGBoost, while fitting the five final models took about ten seconds.</p>
+  </div>
+</section>
+
+<section id="evaluation" aria-labelledby="h-eval">
+  <h2 id="h-eval">How the models are judged</h2>
+  <div class="prose">
+    <p>The split is fixed before any model is compared: training weeks come first in time, then the validation month, then the final test week. Each part has one job.</p>
+  </div>
+  <div class="tablewrap" style="max-width:52rem"><table>
+    <thead><tr><th>Data</th><th>Used for</th><th>Never used for</th></tr></thead>
+    <tbody>
+      <tr><td>Training</td><td>Fitting the models and <code>k_plant</code></td><td>Reporting final accuracy</td></tr>
+      <tr><td>Validation</td><td>XGBoost early stopping, greedy feature search and pruning</td><td>Fitting trees</td></tr>
+      <tr><td>Test week</td><td>Reporting the final numbers, once per run</td><td>Early stopping, feature selection, picking a revision</td></tr>
+    </tbody></table></div>
+  <div class="prose">
+    <h3>Metrics shown on this site</h3>
+    <ul>
+      <li><strong>MAE (mean absolute error, in MW):</strong> the typical size of a miss in physical units, without over-weighting rare large misses.</li>
+      <li><strong>R² (coefficient of determination):</strong> the share of power variation the forecast explains.</li>
+      <li><strong>Validation RMSE</strong> is used inside the greedy search only, because it punishes large misses more.</li>
+    </ul>
+    <p>Both MAE and R² are averaged over all 672 steps of the week, including night hours when the forecast is zero by rule. That makes both look better than a daytime-only score would, and it is why even the weather-blind S1 model has an R² above 0.86. Read the gap between scenarios, not the absolute level.</p>
+    <p><strong>How big a difference counts?</strong> Across all 48 runs, the five revisions of one setup differ in test MAE by a median of 0.043 MW, and by up to 0.17 MW. Differences smaller than that are not evidence that one setup is better.</p>
+    <div class="note"><strong>Computed but not shown.</strong> The notebook code also calculates RMSE, daytime MAPE, mean bias, daytime MAE and the share of 15-minute blocks inside the ±7% Deviation Settlement band, and writes them to CSV files. Those values were not printed in the saved notebook output, so they are not on this site. Re-running the notebooks produces them.</div>
+  </div>
+</section>
+
+<section id="results" aria-labelledby="h-results">
+  <h2 id="h-results">Results</h2>
+  <div class="controls">
+    <fieldset class="ctl"><legend>Measure</legend>
+      <div class="seg" role="radiogroup" aria-label="Measure" data-ctl="lens"></div></fieldset>
+  </div>
+  <div class="legend" id="legend" aria-hidden="true"></div>
+  <div class="charts" id="charts"></div>
+  <p class="small" style="margin-top:.5rem">Points are the mean over five revisions; vertical lines span the lowest to highest revision. Hover or focus a point for exact values.</p>
+  <details class="tbl"><summary>Show the same numbers as a table</summary><div class="tablewrap" id="restable"></div></details>
+
+  <div class="prose">
+    <h3>What the numbers say</h3>
+    <ul>
+      <li><strong>Adding measured weather (S1 to S2) is the big step.</strong> Test MAE falls by 14% to 31% in Summer, 26% to 43% in Winter, and 44% to 74% in Monsoon, depending on model and feature mode.</li>
+      <li><strong>After S2, the gains are small and uneven.</strong> Summer XGBoost with all features gets worse from S3 (0.771 MW) to S4 (0.817 MW), and Summer Random Forest with greedy features is worse at S3 (0.836 MW) than at S2 (0.692 MW). Typical changes after S2 are close to the 0.043 MW revision spread, so S2, S3 and S4 cannot be ranked from one test week.</li>
+      <li><strong>Greedy features beat all features in 20 of 24 matched pairs</strong> on test MAE, usually with fewer inputs. The four exceptions are Summer Random Forest S3, Monsoon XGBoost S1, Monsoon Random Forest S1 and Monsoon Random Forest S4, where the greedy set was worse.</li>
+      <li><strong>Validation points to one setup.</strong> In all three seasons the lowest validation MAE among the 16 runs of each season belongs to XGBoost S4 with greedy features, which scores 0.671 MW (Summer), 0.451 MW (Winter) and 0.393 MW (Monsoon) on the test week. XGBoost’s validation numbers are slightly flattered because early stopping used the same validation data.</li>
+      <li><strong>Models fit training data much better than new data.</strong> Test MAE is on average 0.25 MW above training MAE for XGBoost and 0.37 MW for Random Forest. Switch the measure to “Train MAE” above to see it.</li>
+      <li><strong>Test MAE is lower than validation MAE in Summer (14 of 16 runs) and Monsoon (all 16), but never in Winter.</strong> The test week is a single week, so this reflects that week and not better generalisation.</li>
+    </ul>
+  </div>
+</section>
+
+<section id="selection" aria-labelledby="h-sel">
+  <h2 id="h-sel">Which features does the greedy search keep?</h2>
+  <div class="prose"><p>Choose a run to see the search step by step. Each bar is the validation RMSE after adding that feature (shorter is better). Blue bars are features in the final set, hatched bars were added and then removed by pruning, and grey bars were tried after the best point and discarded.</p></div>
+  <div class="controls">
+    <fieldset class="ctl"><legend>Season</legend><div class="seg" role="radiogroup" aria-label="Season for search" data-ctl="s_season"></div></fieldset>
+    <fieldset class="ctl"><legend>Model</legend><div class="seg" role="radiogroup" aria-label="Model for search" data-ctl="s_model"></div></fieldset>
+    <fieldset class="ctl"><legend>Scenario</legend><div class="seg" role="radiogroup" aria-label="Scenario for search" data-ctl="s_scen"></div></fieldset>
+  </div>
+  <div class="card" id="selbox"></div>
+  <div class="prose">
+    <p>In S2 to S4, the first feature chosen was almost always measured irradiance: <code>W-GHI</code> in 12 of the 18 searches, and a heat-corrected or physical irradiance estimate (<code>ghi_temp_interaction</code> or <code>pv_physical_MW</code>) in the other 6. Which other features survive depends on the season. In Summer, every S2 to S4 search drops <code>lag_1d</code> and the XGBoost ones also drop the hour-of-day encodings, while in Winter all eight searches keep <code>lag_1d</code> and <code>sin_hour</code>. A single fixed feature set would not suit all three seasons.</p>
+  </div>
+</section>
+
+<section id="errors" aria-labelledby="h-errors">
+  <h2 id="h-errors">Where the forecasts fail</h2>
+  <div class="prose"><p>Four representative cases, each read from the forecast plots. These describe what is visible in the plots; they are patterns to check, not proven causes.</p></div>
+  <div class="cases" id="cases"></div>
+</section>
+
+<section id="limitations" aria-labelledby="h-lim">
+  <h2 id="h-lim">Limitations</h2>
+  <div class="prose">
+    <ol>
+      <li><strong>The previous-day power feature leaks test data.</strong> <code>lag_1d</code> is the power one day earlier. For days 2 to 7 of the test week, that is actual power from inside the test week, which would not exist when a 7-day forecast is issued. Of the 48 runs, 39 include it (every Standard run, plus the Greedy runs marked below). The size of the effect is unknown without re-running. Because S1 depends on past power the most, S1 is probably flattered, so the S1-to-S2 improvement is more likely understated than overstated. The fix is to drop <code>lag_1d</code> and re-run. The plot titles saved by the notebook say “no test-period lags”, which is not accurate for runs that use this feature.</li>
+      <li><strong>Weather is measured, not forecast.</strong> S2 to S4 use the weather recorded at the target time. A real operator would have only a weather forecast, which has its own error. These results are closer to a best case.</li>
+      <li><strong>Only one reference model.</strong> S1 is the only comparison point. Persistence (“same as yesterday”) and the average daily curve were proposed but are not in the notebooks, so there is no check that the tree models beat the simplest rules.</li>
+      <li><strong>One test week per season.</strong> There are no confidence intervals, and a single cloudy or clear week can change a ranking. The revision spread is the only uncertainty measure shown.</li>
+      <li><strong>Metrics include night.</strong> MAE and R² are diluted by hours of exact zeros. Daytime-only results and bias exist in the code but not in the saved outputs.</li>
+      <li><strong>Seasons are modelled separately</strong>, each from about three months of history. Nothing here shows how a model would transfer to another season or another plant.</li>
+      <li><strong>No causal claim.</strong> A feature that helps prediction is not shown to cause higher output.</li>
+    </ol>
+    <h3>Which runs use the previous-day feature?</h3>
+    <p class="small">A red dot means <code>lag_1d</code> is in the model’s inputs. Standard runs always include it. Greedy runs include it only if the search kept it.</p>
+  </div>
+  <div class="tablewrap" style="max-width:48rem"><table id="leaktable"></table></div>
+</section>
+
+<section id="conclusion" aria-labelledby="h-concl">
+  <h2 id="h-concl">Conclusion</h2>
+  <div class="prose">
+    <p>Telling a week-ahead solar forecast what the weather will be matters far more than which tree model is used or how many derived features are added. Moving from calendar and past power only (S1) to measured weather (S2) cut test MAE by 14% to 31% in Summer, 26% to 43% in Winter, and 44% to 74% in Monsoon. Beyond that, the remaining differences between feature sets and between Random Forest and XGBoost are mostly within the spread between revisions of the same model.</p>
+    <p>The forecasts still fail in recognisable ways: they miss fast cloud swings when they cannot see the weather, run a little low on clear days in Winter, and echo yesterday’s pattern when yesterday’s power is the main clue. Because the weather inputs are perfect measurements and one input leaks a day of test power, these numbers describe a best case. The honest next steps are to remove <code>lag_1d</code>, add the simple baselines, and replace measured weather with a forecast of it.</p>
+  </div>
+</section>
+
+<section id="reproduce" aria-labelledby="h-repro">
+  <h2 id="h-repro">Reproduce this work</h2>
+  <div class="prose">
+    <ol>
+      <li>Get the plant data from the Power Systems and Smart Grid Laboratory, IIT Gandhinagar, with permission. It is not included here.</li>
+      <li>Create one training, validation and test CSV per season with the columns listed under <a href="#data">The data</a>. The notebooks expect these file names:
+        <div class="pre">Summer:  Summer_Training.csv, Summer_Validation.csv, Summer_Testing.csv
+Winter:  Winter_Dataset_Train.csv, Validation_Dataset_Winter.csv, Testing_Dataset_Winter.csv
+Monsoon: Monsoon_Train.csv, Monsoon_Validation.csv, Monsoon_test.csv</div></li>
+      <li>Install the libraries: <code>pip install numpy pandas matplotlib scikit-learn xgboost</code>, or use <code>requirements.txt</code>.</li>
+      <li>Open one notebook from the <a href="code/">code folder</a> and run all cells. Each one runs 16 setups (2 models × 4 scenarios × standard or greedy), five revisions each. The greedy searches dominate the run time, at about 12 to 15 minutes per season in the saved runs (on the author’s machine).</li>
+      <li>Results are written to <code>final_deliverables/</code>, with a forecast CSV, a Deviation Settlement CSV, a metrics CSV and an overlay plot for every setup.</li>
+    </ol>
+    <p>Random seeds are fixed in the revision settings. The notebooks are provided with their outputs cleared. This site’s numbers and plots were read directly from the saved outputs of the original runs.</p>
+    <h3>Tools and assistance</h3>
+    <p>The modelling code and analysis are the author’s own. This website was built with the help of Claude, an AI assistant from Anthropic, which turned the saved notebook outputs into the pages, charts and text. The author is responsible for checking every figure and can explain any part of the work.</p>
+  </div>
+</section>
+
+<footer>
+  Shivansh, 24110330. ES 335 Machine Learning, course project, IIT Gandhinagar. Data courtesy of the Power Systems and Smart Grid Laboratory; no raw data is published.
+</footer>
+</main>
+</div>
+<div class="tip" id="tip" role="status"></div>
+<script src="data/results.js"></script>
+<script src="assets/app.js"></script>
+</body>
+</html>
