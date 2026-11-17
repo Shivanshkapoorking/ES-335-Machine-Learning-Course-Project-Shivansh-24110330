@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Forecasting a 21.5 MW solar plant, Day Ahead</title>
-<meta name="description" content="ES 335 course project: Random Forest and XGBoost forecasts of a 21.5 MW solar PV plant over three seasonal test weeks, with four levels of input information.">
+<meta name="description" content="ES 335 course project: Random Forest and XGBoost forecasts of a 21.5 MW solar PV plant over three seasonal test weeks, with four levels of input information.day ahead.">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E☀%3C/text%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -33,9 +33,9 @@
 <main id="main">
 
 <section class="first hero" aria-labelledby="h-top">
-  <h1 id="h-top">Forecasting a 21.5 MW Solar PV Plant: Week-Ahead Forecasting Across Seasonal Climates</h1>
+  <h1 id="h-top">Forecasting a 21.5 MW Solar PV Plant: Day-Ahead Forecasting</h1>
   <p class="byline">Shivansh, Roll number 24110330. ES 335 Machine Learning course project, working solo.</p>
-  <p class="lead">A grid operator has to commit to a week of solar output before the weather arrives. This project asks how much a Random Forest or XGBoost forecast improves as it is given more information, and where it still fails. Pick a season, a model and a level of information below, and compare the forecast with what the plant actually produced.</p>
+  <p class="lead">A grid operator has to commit to tomorrow’s solar output (day-ahead schedule) before the weather arrives. This project asks how much a Random Forest or XGBoost forecast improves as it is given more information, and where it still fails. Pick a season, a model and a level of information below, and compare the forecast with what the plant actually produced.</p>
 </section>
 
 <section id="explorer" class="first" style="padding-top:0;border-top:0" aria-labelledby="h-explorer">
@@ -65,11 +65,11 @@
 <section id="question" aria-labelledby="h-question">
   <h2 id="h-question">The question</h2>
   <div class="prose">
-    <p>How accurately can tree-based ensembles forecast one week of solar power for a single utility plant, how does accuracy change as the model is given more information, and what kind of weather makes the forecast fail?</p>
+    <p>How accurately can tree-based ensembles forecast solar power one day ahead, over a seven-day test week for a single utility plant, how does accuracy change as the model is given more information, and what kind of weather makes the forecast fail?</p>
     <ul>
       <li><strong>One row:</strong> one 15-minute reading from the plant’s SCADA logger (timestamp, power, module temperature, irradiance, air temperature, wind direction, wind speed).</li>
       <li><strong>Target:</strong> real power output, <code>Act. Power (MW)</code>, between 0 and the 21.5 MW installed capacity.</li>
-      <li><strong>When the prediction is made:</strong> once, at the start of the week, for all 672 quarter-hour steps of the next seven days. There is no re-forecasting during the week.</li>
+      <li><strong>When the prediction is made:</strong> nce per day, for the next 96 quarter-hour steps. The test week is seven separate day-ahead forecasts. There is no re-forecasting during the week.</li>
       <li><strong>What is available then:</strong> depends on the scenario, from past power and the calendar only (S1) up to measured weather and sun position at each target time (S2 to S4). The scenarios are defined in <a href="#methods">Baseline and methods</a>.</li>
       <li><strong>What the results can claim:</strong> how these models behaved on one plant in three specific test weeks. They show association, not cause, and they do not show how the models would do in other years, at other plants, or with a real weather forecast.</li>
     </ul>
@@ -79,7 +79,7 @@
 <section id="data" aria-labelledby="h-data">
   <h2 id="h-data">The data</h2>
   <div class="prose">
-    <p>The data are SCADA logs from a 21.5 MW grid-connected solar plant in western India (western India). They were shared by the Power Systems and Smart Grid Laboratory at IIT Gandhinagar, with permission from Prof. Naran M. Pindoriya, for this course project. The logs are proprietary, so <strong>no raw data is published on this site or in the repository</strong>. Only model outputs, plots and summary numbers are shown.</p>
+<p>The data are SCADA logs from a 21.5 MW grid-connected solar plant in western India. They were shared by … the Power Systems and Smart Grid Laboratory at IIT Gandhinagar, with permission from Prof. Naran M. Pindoriya, for this course project. The logs are proprietary, so <strong>no raw data is published on this site or in the repository</strong>. Only model outputs, plots and summary numbers are shown.</p>
   </div>
   <div class="tablewrap" style="max-width:46rem"><table>
     <thead><tr><th>Column</th><th>Meaning</th><th>Unit</th></tr></thead>
@@ -93,7 +93,7 @@
     </tbody></table></div>
   <div class="prose">
     <h3>How the data is split</h3>
-    <p>Each season has its own training, validation and test file, and the three are cut in time order, never shuffled. The proposal planned about 85 to 86 days for training, a one-month validation window and a seven-day test week. The notebooks do not print exact row counts, so those planned sizes are the ones quoted here.</p>
+    <p>Each season has its own training, validation and test file, and the three are cut in time order, never shuffled. The proposal planned about 85 to 86 days for training, a one-month validation window and a seven-day test week.</p>
   </div>
   <div class="tablewrap" style="max-width:46rem"><table>
     <thead><tr><th>Season</th><th>Test week (672 steps)</th><th>Role of the week</th></tr></thead>
@@ -127,7 +127,7 @@
       <li><strong>Post-process predictions.</strong> Clip to 0 to 21.5 MW and set the forecast to zero between 20:00 and 05:30, a fixed clock rule rather than something the model learns.</li>
     </ol>
     <p>No scaling or imputation is applied. Trees split on thresholds, so rescaling a feature does not change them, and leaving gaps empty means there is nothing to fit on test data. The one learned preprocessing step, <code>k_plant</code>, uses training rows only.</p>
-    <div class="note alert"><strong>One leakage exception.</strong> <code>lag_1d</code> is computed over the whole time axis, so for days 2 to 7 of a test week it holds the actual power of the previous test day. That is not available when a 7-day-ahead forecast is issued. The details and how many runs are affected are in <a href="#limitations">Limitations</a>.</div>
+    <div class="note alert"><strong>One leakage exception.</strong> <code>lag_1d</code> is the previous day’s actual power. For a day-ahead forecast this is allowed, if the forecast is issued after that day’s power is known. Slots after the submission time on the previous day would not be known. This is assessed under <a href="#limitations">Limitations</a>.</div>
   </div>
 </section>
 
@@ -135,7 +135,7 @@
   <h2 id="h-methods">Baseline and methods</h2>
   <div class="prose">
     <h3>Four levels of information</h3>
-    <p>The same models are trained four times, each time with a larger feature set. <strong>S1 is the reference model</strong>: it sees only past power and the calendar, no weather, and every other scenario is compared against it.</p>
+<p>The same models are trained four times, each time with a larger feature set. Two simple baselines are reported alongside them: <strong>persistence</strong> (the power at the same time yesterday) and the <strong>previous seven-day average</strong> for the same quarter-hour. A tree model is only useful if it beats these. <strong>S1</strong> is the weather-blind reference: it sees only past power and the calendar.</p>
   </div>
   
 <div class="tablewrap" style="max-width:56rem">
@@ -176,9 +176,9 @@
   <strong>Experimental interpretation and proposal differences.</strong>
   The four scenarios progressively expand the information available to the models, starting with historical and temporal features in S1, followed by measured weather variables in S2, physics-derived features in S3, and solar geometry and estimated generation features in S4.
 
-  In the original proposal, S2 was intended to use weather information available up to the forecast origin, while S3 was intended to incorporate forward meteorological covariates. However, the implemented notebooks use measured weather at the target timestamps in S2–S4. This effectively assumes perfect knowledge of future weather conditions and represents an idealised information setting rather than a realistic operational week-ahead forecasting setup.
+  In the original proposal, S2 was intended to use weather information available up to the forecast origin, while S3 was intended to incorporate forward meteorological covariates. However, the implemented notebooks use measured weather at the target timestamps in S2–S4. This effectively assumes perfect knowledge of future weather conditions and represents an idealised information setting rather than a realistic operational day-ahead forecasting setup.
 
-  The persistence and diurnal seasonal mean baselines proposed initially have not been implemented in the reported experiments. Consequently, S1 serves as the historical-feature reference configuration, not as a substitute for these conventional forecasting baselines.
+ The persistence and previous-seven-day-average baselines are reported in the results table as extra rows, computed from the same test weeks.
 </div>
 
   <!-- <div class="tablewrap" style="max-width:56rem"><table>
@@ -239,10 +239,18 @@
     <h3>Metrics shown on this site</h3>
     <ul>
       <li><strong>MAE (mean absolute error, in MW):</strong> the typical size of a miss in physical units, without over-weighting rare large misses.</li>
+<li><strong>RMSE (MW):</strong> like MAE but weighs large misses more heavily.</li>
+<li><strong>Daytime MAE and MAPE:</strong> computed only over daylight steps, so the long runs of exact zeros at night do not flatter the score.</li>
+<li><strong>Mean bias (MW):</strong> positive means the forecast is on average too high.</li>
+<li><strong>Share within ±7% of capacity:</strong> the fraction of 15-minute blocks whose error is within 7% of the 21.5 MW capacity (about 1.5 MW). This band is the one used in Deviation Settlement, so it matters for a day-ahead schedule.</li>
+<li><strong>R² (coefficient of determination):</strong> the share of power variation the forecast explains.</li>
+<li><strong>Validation RMSE</strong> is used inside the greedy search only.</li>
+      <!-- <li><strong>MAE (mean absolute error, in MW):</strong> the typical size of a miss in physical units, without over-weighting rare large misses.</li>
       <li><strong>R² (coefficient of determination):</strong> the share of power variation the forecast explains.</li>
-      <li><strong>Validation RMSE</strong> is used inside the greedy search only, because it punishes large misses more.</li>
+      <li><strong>Validation RMSE</strong> is used inside the greedy search only, because it punishes large misses more.</li> -->
     </ul>
-    <p>Both MAE and R² are averaged over all 672 steps of the week, including night hours when the forecast is zero by rule. That makes both look better than a daytime-only score would, and it is why even the weather-blind S1 model has an R² above 0.86. Read the gap between scenarios, not the absolute level.</p>
+    <!-- <p>Both MAE and R² are averaged over all 672 steps of the week, including night hours when the forecast is zero by rule. That makes both look better than a daytime-only score would, and it is why even the weather-blind S1 model has an R² above 0.86. Read the gap between scenarios, not the absolute level.</p> -->
+    <p>MAE and R² are averaged over all 672 steps of the week, including night hours when the forecast is zero by rule. That makes both look better than a daytime-only score would, which is why daytime MAE and the ±7% share are also reported. Read the gap between scenarios and baselines, not the absolute level.</p>
     <p><strong>How big a difference counts?</strong> Across all 48 runs, the five revisions of one setup differ in test MAE by a median of 0.043 MW, and by up to 0.17 MW. Differences smaller than that are not evidence that one setup is better.</p>
     <div class="note"><strong>Computed but not shown.</strong> The notebook code also calculates RMSE, daytime MAPE, mean bias, daytime MAE and the share of 15-minute blocks inside the ±7% Deviation Settlement band, and writes them to CSV files. Those values were not printed in the saved notebook output, so they are not on this site. Re-running the notebooks produces them.</div>
   </div>
@@ -296,16 +304,16 @@
   <h2 id="h-lim">Limitations</h2>
   <div class="prose">
     <ol>
-      <li><strong>The previous-day power feature leaks test data.</strong> <code>lag_1d</code> is the power one day earlier. For days 2 to 7 of the test week, that is actual power from inside the test week, which would not exist when a 7-day forecast is issued. Of the 48 runs, 39 include it (every Standard run, plus the Greedy runs marked below). The size of the effect is unknown without re-running. Because S1 depends on past power the most, S1 is probably flattered, so the S1-to-S2 improvement is more likely understated than overstated. The fix is to drop <code>lag_1d</code> and re-run. The plot titles saved by the notebook say “no test-period lags”, which is not accurate for runs that use this feature.</li>
+      <li><strong>Previous-day power and the submission time.</strong> <code>lag_1d</code> is the actual power one day earlier. For a day-ahead forecast submitted at [HH:MM], the previous day's readings after that time are not yet known, but the notebooks use the whole previous day. Of the 48 runs, 39 include this feature (every Standard run, plus the Greedy runs marked below), so their results may be somewhat optimistic. A strict version that uses only readings available at submission time (and the day before for later slots) was [run and reported in the next section / not run]. The plot titles saved by the notebooks say “no test-period lags”, which does not describe this setup accurately.</li>
       <li><strong>Weather is measured, not forecast.</strong> S2 to S4 use the weather recorded at the target time. A real operator would have only a weather forecast, which has its own error. These results are closer to a best case.</li>
-      <li><strong>Only one reference model.</strong> S1 is the only comparison point. Persistence (“same as yesterday”) and the average daily curve were proposed but are not in the notebooks, so there is no check that the tree models beat the simplest rules.</li>
+      <li><strong>Simple baselines are strong for solar.</strong> On clear days, yesterday’s power is a hard baseline to beat. A model that only slightly beats persistence in MAE may not be worth the added complexity.</li>
       <li><strong>One test week per season.</strong> There are no confidence intervals, and a single cloudy or clear week can change a ranking. The revision spread is the only uncertainty measure shown.</li>
       <li><strong>Metrics include night.</strong> MAE and R² are diluted by hours of exact zeros. Daytime-only results and bias exist in the code but not in the saved outputs.</li>
       <li><strong>Seasons are modelled separately</strong>, each from about three months of history. Nothing here shows how a model would transfer to another season or another plant.</li>
       <li><strong>No causal claim.</strong> A feature that helps prediction is not shown to cause higher output.</li>
     </ol>
     <h3>Which runs use the previous-day feature?</h3>
-    <p class="small">A red dot means <code>lag_1d</code> is in the model’s inputs. Standard runs always include it. Greedy runs include it only if the search kept it.</p>
+<p class="small">A red dot means <code>lag_1d</code> is in the model’s inputs. Standard runs always include it. Greedy runs include it only if the search kept it. This is acceptable in a day-ahead setting only up to the submission time, as explained in item 1.</p>
   </div>
   <div class="tablewrap" style="max-width:48rem"><table id="leaktable"></table></div>
 </section>
@@ -313,8 +321,8 @@
 <section id="conclusion" aria-labelledby="h-concl">
   <h2 id="h-concl">Conclusion</h2>
   <div class="prose">
-    <p>Telling a week-ahead solar forecast what the weather will be matters far more than which tree model is used or how many derived features are added. Moving from calendar and past power only (S1) to measured weather (S2) cut test MAE by 14% to 31% in Summer, 26% to 43% in Winter, and 44% to 74% in Monsoon. Beyond that, the remaining differences between feature sets and between Random Forest and XGBoost are mostly within the spread between revisions of the same model.</p>
-    <p>The forecasts still fail in recognisable ways: they miss fast cloud swings when they cannot see the weather, run a little low on clear days in Winter, and echo yesterday’s pattern when yesterday’s power is the main clue. Because the weather inputs are perfect measurements and one input leaks a day of test power, these numbers describe a best case. The honest next steps are to remove <code>lag_1d</code>, add the simple baselines, and replace measured weather with a forecast of it.</p>
+    <p>Telling a day-ahead solar forecast what the weather will be matters far more than which tree model is used or how many derived features are added. Moving from calendar and past power only (S1) to measured weather (S2) cut test MAE by 14% to 31% in Summer, 26% to 43% in Winter, and 44% to 74% in Monsoon. Beyond that, the remaining differences between feature sets and between Random Forest and XGBoost are mostly within the spread between revisions of the same model.</p>
+    <p>The forecasts still fail in recognisable ways: they miss fast cloud swings when they cannot see the weather, run a little low on clear days in Winter, and echo yesterday’s pattern when yesterday’s power is the main clue. Because the weather inputs are perfect measurements and one input, these numbers describe a best case.The honest next steps are to test a strict version of <code>lag_1d</code> that respects the submission time, report the simple baselines next to the models, and replace measured weather with a forecast of it.</p>
   </div>
 </section>
 
