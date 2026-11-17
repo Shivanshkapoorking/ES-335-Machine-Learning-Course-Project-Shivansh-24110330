@@ -33,7 +33,7 @@
 <main id="main">
 
 <section class="first hero" aria-labelledby="h-top">
-  <h1 id="h-top">Forecasting a 21.5 MW solar plant, Day Ahead</h1>
+  <h1 id="h-top">Forecasting a 21.5 MW Solar PV Plant: Week-Ahead Forecasting Across Seasonal Climates</h1>
   <p class="byline">Shivansh, Roll number 24110330. ES 335 Machine Learning course project, working solo.</p>
   <p class="lead">A grid operator has to commit to a week of solar output before the weather arrives. This project asks how much a Random Forest or XGBoost forecast improves as it is given more information, and where it still fails. Pick a season, a model and a level of information below, and compare the forecast with what the plant actually produced.</p>
 </section>
@@ -137,7 +137,51 @@
     <h3>Four levels of information</h3>
     <p>The same models are trained four times, each time with a larger feature set. <strong>S1 is the reference model</strong>: it sees only past power and the calendar, no weather, and every other scenario is compared against it.</p>
   </div>
-  <div class="tablewrap" style="max-width:56rem"><table>
+  
+<div class="tablewrap" style="max-width:56rem">
+  <table>
+    <thead>
+      <tr>
+        <th>Scenario</th>
+        <th>Information added</th>
+        <th class="num">Features</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>S1</td>
+        <td>Historical and temporal information: calendar encodings (4) and historical power features (3)</td>
+        <td class="num">7</td>
+      </tr>
+      <tr>
+        <td>S2</td>
+        <td>Measured weather information at target timestamps: module temperature, irradiance, ambient temperature, wind speed and wind components (6)</td>
+        <td class="num">13</td>
+      </tr>
+      <tr>
+        <td>S3</td>
+        <td>Physics-derived features: temperature difference, heat-corrected irradiance and wind-cooling proxy (3)</td>
+        <td class="num">16</td>
+      </tr>
+      <tr>
+        <td>S4</td>
+        <td>Solar geometry and estimated generation features: solar zenith, elevation, clear-sky irradiance, clear-sky index and plant-yield estimates (6)</td>
+        <td class="num">22</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="note">
+  <strong>Experimental interpretation and proposal differences.</strong>
+  The four scenarios progressively expand the information available to the models, starting with historical and temporal features in S1, followed by measured weather variables in S2, physics-derived features in S3, and solar geometry and estimated generation features in S4.
+
+  In the original proposal, S2 was intended to use weather information available up to the forecast origin, while S3 was intended to incorporate forward meteorological covariates. However, the implemented notebooks use measured weather at the target timestamps in S2–S4. This effectively assumes perfect knowledge of future weather conditions and represents an idealised information setting rather than a realistic operational week-ahead forecasting setup.
+
+  The persistence and diurnal seasonal mean baselines proposed initially have not been implemented in the reported experiments. Consequently, S1 serves as the historical-feature reference configuration, not as a substitute for these conventional forecasting baselines.
+</div>
+
+  <!-- <div class="tablewrap" style="max-width:56rem"><table>
     <thead><tr><th>Scenario</th><th>Adds</th><th class="num">Features</th></tr></thead>
     <tbody>
       <tr><td>S1</td><td>Time encodings (4) and past power (3)</td><td class="num">7</td></tr>
@@ -145,7 +189,7 @@
       <tr><td>S3</td><td>Physics-derived features: temperature difference, heat-corrected irradiance, wind cooling proxy (3)</td><td class="num">16</td></tr>
       <tr><td>S4</td><td>Sun position: zenith cosine, elevation, clear-sky irradiance, clear-sky index, two plant-yield estimates (6)</td><td class="num">22</td></tr>
     </tbody></table></div>
-  <div class="note"><strong>How this differs from the proposal.</strong> The proposal described S2 as weather observed up to the forecast time and S3 as forward weather covariates. In the notebooks, S2 to S4 all use the weather measured at the target time itself, which is the same as assuming a perfect weather forecast. S3 adds derived physics features, and S4 adds sun position. The persistence and diurnal-mean baselines in the proposal are not in the notebooks, so S1 is the only reference shown here.</div>
+  <div class="note"><strong>How this differs from the proposal.</strong> The proposal described S2 as weather observed up to the forecast time and S3 as forward weather covariates. In the notebooks, S2 to S4 all use the weather measured at the target time itself, which is the same as assuming a perfect weather forecast. S3 adds derived physics features, and S4 adds sun position. The persistence and diurnal-mean baselines in the proposal are not in the notebooks, so S1 is the only reference shown here.</div> -->
 
   <div class="prose">
     <h3>Two models, chosen for the data</h3>
