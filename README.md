@@ -1,20 +1,66 @@
-# Forecasting a 21.5 MW solar plant, one Day ahead
+# Week-Ahead Solar PV Generation Forecasting
 
-ES 335 Machine Learning course project. Shivansh, roll number 24110330 (solo).
+**Course:** ES 335 – Machine Learning  
+**Student:** Shivansh  
+**Roll Number:** 24110330  
+**Institution:** IIT Gandhinagar  
+**Track:** Undergraduate – Individual Project
 
-Static website for GitHub Pages: open `index.html`, no build step. All numbers and plots on the site were read from the saved outputs of the three notebooks (Monsoon updated from the re-run notebook with all 16 runs finished) in `code/`.
+## Project Overview
 
-## Layout
-- `index.html`, `assets/` : the site (plain HTML, CSS, JavaScript)
-- `data/results.js`, `data/results.json` : summary numbers parsed from the notebook outputs (metrics per run, greedy-search steps). No raw plant data.
-- `img/` : forecast overlay plots exported from the notebook outputs (test week only)
-- `code/` : the three season notebooks, outputs cleared
+This project investigates seven-day solar PV generation forecasting for a 21.5 MW utility-scale solar plant across Summer, Winter and Monsoon conditions.
 
-## Data
-The SCADA data is proprietary (Power Systems and Smart Grid Laboratory, IIT Gandhinagar, shared with permission) and is NOT in this repository. See the "Reproduce this work" section of the site for the expected file names.
+It compares Random Forest and XGBoost models under four progressively expanded feature-information scenarios.
 
-## Website location
-1. The site appears at [(https://shivanshkapoorking.github.io/ES-335-Machine-Learning-Course-Project-Shivansh-24110330/)].
+## Research Objectives
 
-## Disclosure
-The data preprocessing pipelines, feature engineering, machine learning modeling (XGBoost and Random Forest across Scenarios S1–S4), and evaluation metrics were designed and executed by the author. An AI assistant was used to help write and debug the Python scripts, format CSV deliverables, and structure this interactive website from the notebook outputs. The author verified all code logic, checked every metric and figure, and takes full responsibility for the final work.
+- Evaluate week-ahead forecasting performance across three seasonal conditions.
+- Study how additional meteorological and physics-derived features influence prediction accuracy.
+- Investigate forecasting errors and their relationship with observed weather conditions.
+
+## Repository Structure
+
+- `index.html` – Interactive project website.
+- `code/` – Seasonal Jupyter notebooks.
+- `final_deliverables/` – Exported forecasts, evaluation metrics and plots.
+- `requirements.txt` – Python dependencies.
+
+## Dataset
+
+The project uses proprietary SCADA data obtained with permission from the Power Systems and Smart Grid Laboratory at IIT Gandhinagar.
+
+Raw observations are not included in this public repository because of data confidentiality restrictions.
+
+## Methodology
+
+- Data cleaning and chronological partitioning.
+- Temporal and meteorological feature engineering.
+- Random Forest and XGBoost regression.
+- Seasonal experiments and feature-selection analysis.
+- Evaluation using regression and operational metrics.
+
+## Reproducibility
+
+1. Obtain the permitted dataset from its authorised source.
+2. Prepare the seasonal training, validation and test CSV files using the documented schema.
+3. Install the dependencies:
+
+   `pip install -r requirements.txt`
+
+4. Open the corresponding seasonal notebook.
+5. Execute the notebook cells in order.
+6. Find the generated forecasts, metrics and plots in the output directory.
+
+## Interactive Website
+
+Visit the published GitHub Pages website:
+
+https://shivanshkapoorking.github.io/ES-335-Machine-Learning-Course-Project-Shivansh-24110330/
+
+## Limitations
+
+The study uses one test week per season and measured target-time weather in the weather-informed scenarios. Its findings should therefore be interpreted as an experimental comparison rather than a validated operational forecasting system.
+
+## Responsible AI Use
+
+AI assistance was used for coding, debugging, formatting and website development. All results and final project claims remain the responsibility of the author.
